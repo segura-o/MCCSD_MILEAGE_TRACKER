@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mileage Lookup Tool</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #dbe3ef;
+      --danger: #dc2626;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+      margin-bottom: 20px;
+    }
+
+    h1, h2 {
+      margin-top: 0;
+    }
+
+    .subtext {
+      color: var(--muted);
+      margin-top: -8px;
+      margin-bottom: 20px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    select, button {
+      font-size: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    select {
+      min-width: 280px;
+      background: white;
+    }
+
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+      border: none;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+    }
+
+    button.secondary {
+      background: white;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    button.secondary:hover {
+      background: #f8fafc;
+    }
+
+    button.danger {
+      background: var(--danger);
+    }
+
+    .route-display {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    ul {
+      padding-left: 20px;
+      margin-bottom: 0;
+    }
+
+    .total {
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 16px;
+    }
+
+    .warning {
+      margin-top: 12px;
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      font-size: 14px;
+    }
+
+    .legend-item {
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fafcff;
+    }
+
+    code {
+      background: #eef2ff;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h1>Mileage Lookup Tool</h1>
+
+    <div class="controls">
+      <select id="locationSelect"></select>
+      <button id="addStopBtn">Add Stop</button>
+      <button id="removeLastBtn" class="secondary">Remove Last</button>
+      <button id="clearRouteBtn" class="danger">Clear Route</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Current Route</h2>
+    <div id="routeDisplay" class="route-display empty">No stops added yet.</div>
+  </div>
+
+  <div class="card">
+    <h2>Breakdown</h2>
+    <div id="breakdown" class="empty">Add at least 2 stops to calculate mileage.</div>
+    <div id="totalMiles" class="total"></div>
+    <div id="warning" class="warning"></div>
+  </div>
+
+  <img src = https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1718025213/mccsdnet/bfwy7wkktbpw6rr9j7jh/MC-Header.png
+       alt = "Image of MCCSD logo">
+</div>
+
+<script>
+  // Full labels for dropdown display.
+  const locations = {
+    "BPK": "BPK",
+    "EA": "EA",
+    "HP": "HP",
+    "HR": "HR",
+    "NC": "NC",
+    "OX": "OX",
+    "UDK": "UDK",
+    "SC": "SC",
+    "JE": "JE",
+    "NL": "NL",
+    "DMS": "DMS",
+    "SMS": "SMS",
+    "NHS": "NHS",
+    "CHS": "CHS",
+    "DAO": "DAO"
+  };
+
+  // Direction-aware mileage table.
+  // Replace these sample values with your real chart.
+  const mileageTable = {
+    "BPK": {
+      "EA": 5.5,
+      "HP": 2.0,
+      "HR": 4.5,
+      "NC": 3.0,
+      "OX": 4.2,
+      "UDK": 3.8,
+      "SC": 1.1,
+      "JE": 2.4,
+      "NL": 1.8,
+      "DMS": 4.7,
+      "SMS": 2.8,
+      "NHS": 2.4,
+      "CHS": 4.6,
+      "DAO": 5.0
+    },
+    "EA": {
+      "BPK": 5.5,
+      "HP": 4.5,
+      "HR": 3.0,
+      "NC": 3.8,
+      "OX": 2.4,
+      "UDK": 2.6,
+      "SC": 5.4,
+      "JE": 3.4,
+      "NL": 5.9,
+      "DMS": 3.1,
+      "SMS": 4.3,
+      "NHS": 4.0,
+      "CHS": 3.3,
+      "DAO": 3.2
+    },
+    "HP": {
+      "BPK": 2.0,
+      "EA": 4.5,
+      "HR": 2.0,
+      "NC": 1.1,
+      "OX": 3.3,
+      "UDK": 3.0,
+      "SC": 1.3,
+      "JE": 2.1,
+      "NL": 3.4,
+      "DMS": 2.8,
+      "SMS": 1.0,
+      "NHS": 1.5,
+      "CHS": 2.6,
+      "DAO": 3.0
+    },
+    "HR": {
+      "BPK": 4.5,
+      "EA": 3.0,
+      "HP": 2.0,
+      "NC": 3.2,
+      "OX": 2.2,
+      "UDK": 1.2,
+      "SC": 4.0,
+      "JE": 2.2,
+      "NL": 5.0,
+      "DMS": 2.2,
+      "SMS": 3.3,
+      "NHS": 2.9,
+      "CHS": 2.4,
+      "DAO": 2.4
+    },
+    "NC": {
+      "BPK": 3.0,
+      "EA": 3.8,
+      "HP": 1.1,
+      "HR": 3.2,
+      "OX": 2.7,
+      "UDK": 2.4,
+      "SC": 2.3,
+      "JE": 1.1,
+      "NL": 4.5,
+      "DMS": 2.2,
+      "SMS": 0.9,
+      "NHS": 1.4,
+      "CHS": 2.0,
+      "DAO": 2.4
+    },
+    "OX": {
+      "BPK": 4.2,
+      "EA": 2.4,
+      "HP": 3.3,
+      "HR": 2.2,
+      "NC": 2.7,
+      "UDK": 1.7,
+      "SC": 4.7,
+      "JE": 3.0,
+      "NL": 5.0,
+      "DMS": 1.3,
+      "SMS": 3.5,
+      "NHS": 2.9,
+      "CHS": 1.9,
+      "DAO": 1.9
+    },
+    "UDK": {
+      "BPK": 3.8,
+      "EA": 2.6,
+      "HP": 3.0,
+      "HR": 1.2,
+      "NC": 2.4,
+      "OX": 1.7,
+      "SC": 3.3,
+      "JE": 1.4,
+      "NL": 4.0,
+      "DMS": 0.9,
+      "SMS": 2.7,
+      "NHS": 2.3,
+      "CHS": 1.7,
+      "DAO": 1.7
+    },
+    "SC": {
+      "BPK": 1.1,
+      "EA": 5.4,
+      "HP": 1.3,
+      "HR": 4.0,
+      "NC": 2.3,
+      "OX": 4.7,
+      "UDK": 3.3,
+      "JE": 1.8,
+      "NL": 0.8,
+      "DMS": 5.2,
+      "SMS": 2.0,
+      "NHS": 1.7,
+      "CHS": 5.0,
+      "DAO": 5.4
+    },
+    "JE": {
+      "BPK": 2.4,
+      "EA": 3.4,
+      "HP": 2.1,
+      "HR": 2.2,
+      "NC": 1.1,
+      "OX": 3.0,
+      "UDK": 1.4,
+      "SC": 1.8,
+      "NL": 3.7,
+      "DMS": 2.5,
+      "SMS": 1.8,
+      "NHS": 2.4,
+      "CHS": 2.2,
+      "DAO": 2.7
+    },
+    "NL": {
+      "BPK": 1.8,
+      "EA": 5.9,
+      "HP": 3.4,
+      "HR": 5.2,
+      "NC": 4.5,
+      "OX": 5.0,
+      "UDK": 4.0,
+      "SC": 0.8,
+      "JE": 3.7,
+      "DMS": 5.9,
+      "SMS": 4.1,
+      "NHS": 3.7,
+      "CHS": 5.8,
+      "DAO": 6.3
+    },
+    "DMS": {
+      "BPK": 4.7,
+      "EA": 3.1,
+      "HP": 2.8,
+      "HR": 2.2,
+      "NC": 2.2,
+      "OX": 1.3,
+      "UDK": 0.9,
+      "SC": 5.2,
+      "JE": 2.5,
+      "NL": 5.9,
+      "SMS": 2.5,
+      "NHS": 2.2,
+      "CHS": 1.4,
+      "DAO": 1.3
+    },
+    "SMS": {
+      "BPK": 2.8,
+      "EA": 4.3,
+      "HP": 1.0,
+      "HR": 3.3,
+      "NC": 0.9,
+      "OX": 3.5,
+      "UDK": 2.7,
+      "SC": 2.0,
+      "JE": 1.8,
+      "NL": 4.1,
+      "DMS": 2.5,
+      "NHS": 0.5,
+      "CHS": 2.9,
+      "DAO": 2.6
+    },
+    "NHS": {
+      "BPK": 2.4,
+      "EA": 4.0,
+      "HP": 1.5,
+      "HR": 2.9,
+      "NC": 1.4,
+      "OX": 2.9,
+      "UDK": 2.3,
+      "SC": 1.7,
+      "JE": 2.4,
+      "NL": 3.7,
+      "DMS": 2.2,
+      "SMS": 0.5,
+      "CHS": 2.3,
+      "DAO": 2.8
+    },
+    "CHS": {
+      "BPK": 4.6,
+      "EA": 3.3,
+      "HP": 2.6,
+      "HR": 2.4,
+      "NC": 2.0,
+      "OX": 1.9,
+      "UDK": 1.7,
+      "SC": 5.0,
+      "JE": 2.2,
+      "NL": 5.8,
+      "DMS": 1.4,
+      "SMS": 2.9,
+      "NHS": 2.3,
+      "DAO": 0.9
+    },
+    "DAO": {
+      "BPK": 5.0,
+      "EA": 3.4,
+      "HP": 3.1,
+      "HR": 2.4,
+      "NC": 2.4,
+      "OX": 1.9,
+      "UDK": 1.7,
+      "SC": 5.4,
+      "JE": 2.7,
+      "NL": 6.3,
+      "DMS": 1.3,
+      "SMS": 2.6,
+      "NHS": 2.8,
+      "CHS": 0.9
+    }
+  };
+
+  const route = [];
+
+  const locationSelect = document.getElementById('locationSelect');
+  const addStopBtn = document.getElementById('addStopBtn');
+  const removeLastBtn = document.getElementById('removeLastBtn');
+  const clearRouteBtn = document.getElementById('clearRouteBtn');
+  const routeDisplay = document.getElementById('routeDisplay');
+  const breakdown = document.getElementById('breakdown');
+  const totalMiles = document.getElementById('totalMiles');
+  const warning = document.getElementById('warning');
+
+  function populateDropdown() {
+    locationSelect.innerHTML = '';
+
+    Object.keys(locations).forEach((code) => {
+      const option = document.createElement('option');
+      option.value = code;
+      option.textContent = code;
+      locationSelect.appendChild(option);
+    });
+  }
+
+  function addStop() {
+    const selected = locationSelect.value;
+    if (!selected) return;
+
+    route.push(selected);
+    renderRoute();
+  }
+
+  function removeLastStop() {
+    route.pop();
+    renderRoute();
+  }
+
+  function clearRoute() {
+    route.length = 0;
+    renderRoute();
+  }
+
+  function formatLocation(code) {
+    return code;
+  }
+
+  function renderRoute() {
+    warning.textContent = '';
+
+    if (route.length === 0) {
+      routeDisplay.textContent = 'No stops added yet.';
+      routeDisplay.className = 'route-display empty';
+      breakdown.textContent = 'Add at least 2 stops to calculate mileage.';
+      breakdown.className = 'empty';
+      totalMiles.textContent = '';
+      return;
+    }
+
+    routeDisplay.textContent = route.map(code => code).join(' → ');
+    routeDisplay.className = 'route-display';
+
+    if (route.length < 2) {
+      breakdown.textContent = 'Add at least 2 stops to calculate mileage.';
+      breakdown.className = 'empty';
+      totalMiles.textContent = '';
+      return;
+    }
+
+    let total = 0;
+    const breakdownItems = [];
+
+    for (let i = 0; i < route.length - 1; i++) {
+      const from = route[i];
+      const to = route[i + 1];
+      const miles = mileageTable[from]?.[to];
+
+      if (miles === undefined) {
+        warning.textContent = `Missing mileage for ${from} → ${to}. Add that value to mileageTable.`;
+        breakdown.innerHTML = breakdownItems.length
+                ? `<ul>${breakdownItems.map(item => `<li>${item}</li>`).join('')}</ul>`
+                : '<span class="empty">Mileage breakdown unavailable.</span>';
+        totalMiles.textContent = '';
+        return;
+      }
+
+      total += miles;
+      breakdownItems.push(`${formatLocation(from)} → ${formatLocation(to)} = ${miles} miles`);
+    }
+
+    breakdown.innerHTML = `<ul>${breakdownItems.map(item => `<li>${item}</li>`).join('')}</ul>`;
+    breakdown.className = '';
+    totalMiles.textContent = `Total: ${total} miles`;
+  }
+
+  addStopBtn.addEventListener('click', addStop);
+  removeLastBtn.addEventListener('click', removeLastStop);
+  clearRouteBtn.addEventListener('click', clearRoute);
+
+  populateDropdown();
+  renderRoute();
+</script>
+</body>
+</html>
